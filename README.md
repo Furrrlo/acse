@@ -1,3 +1,43 @@
+# TdE 25/01/2024
+
+The laboratory question must be answered taking into account the implementation of the Acse compiler given with the exam text.
+
+Modify the specification of the lexical analyser (flex input) and the syntactic analyser (bison input)
+and any other source file required to extend the Lance language with the ability to evaluate iterated
+expressions.
+
+This operation is available through a new statement called repeat_exp, having the following syntax:
+```c
+repeat_exp(⟨var.⟩ = ⟨exp. 1 ⟩, ⟨exp. 2 ⟩, ⟨exp. 3 ⟩);
+```
+
+The repeat_exp statement implements a simple loop which, at every iteration, re-computes `⟨exp. 3 ⟩`
+and assigns it to `⟨var.⟩`. `⟨var.⟩` is initialized to the value of `⟨exp. 1 ⟩` before the loop. The number of
+iterations is controlled by the value of `⟨exp. 2 ⟩`.
+
+If `⟨exp. 2 ⟩` is zero or negative, the loop should never iterate, leaving `⟨var.⟩` to its initial value, i.e.
+`⟨exp. 1 ⟩`. Even though this is allowed by the syntax, assume that `⟨exp. 2 ⟩` does not use `⟨var.⟩` in its
+definition. As a result you can assume that `⟨exp. 2 ⟩` doesn’t change during the execution of the loop.
+
+The following code snippet exemplifies the operation of the `repeat_exp` statement. The first
+`repeat_exp` statement initializes a to zero, then performs the assignment $a \leftarrow a + 1$ ten times —
+as specified by the `⟨exp. 2 ⟩` argument — leaving $a = 10$ at the end. The second `repeat_exp` initializes
+`b` to $a × 3 = 30$, but then `⟨exp. 2 ⟩` evaluates to −5, which is a negative value. As a result, `b` is left
+equal to 30 and is not changed again. The third occurrence of `repeat_exp` implements a variant of the
+well-known recurrent formula $x_{i+1} = \frac{1}{2}(x_i + \frac{N}{x_i})$ to compute $\sqrt{4096576}$.
+```c
+int a, b;
+
+repeat_exp(a=0, 10, a+1);
+// a == 10
+
+repeat_exp(b=a*3, a-15, b-1);
+// b == 30
+
+repeat_exp(a=1000, 3, (a+4096576/a)/2);
+// a == 2024
+```
+
 # ACSE (Advanced Compiler System for Education)
 
 ACSE is a complete toolchain consisting of a compiler (named ACSE), an

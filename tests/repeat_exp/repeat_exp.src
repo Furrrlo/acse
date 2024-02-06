@@ -1,0 +1,13 @@
+int a, b;
+
+repeat_exp(a=0, 10, a+1);
+// a == 10
+write(a);
+
+repeat_exp(b=a*3, a-15, b-1);
+// b == 30
+write(b);
+
+repeat_exp(a=1000, 3, (a+4096576/a)/2);
+// a == 2024
+write(a);

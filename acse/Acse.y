@@ -109,6 +109,12 @@ extern void yyerror(const char*);
    t_list *list;
    t_axe_label *label;
    t_while_statement while_stmt;
+   struct {
+      t_axe_label *label_condition;
+      t_axe_label *label_end;
+      int output_register;
+      int counter_register;
+   } repeat_exp_stmt;
 } 
 /*=========================================================================
                                TOKENS 
@@ -125,6 +131,7 @@ extern void yyerror(const char*);
 %token RETURN
 %token READ
 %token WRITE
+%token <repeat_exp_stmt> REPEAT_EXP
 
 %token <label> DO
 %token <while_stmt> WHILE
@@ -247,6 +254,7 @@ statements  : statements statement       { /* does nothing */ }
 statement   : assign_statement SEMI      { /* does nothing */ }
             | control_statement          { /* does nothing */ }
             | read_write_statement SEMI  { /* does nothing */ }
+            | repeat_exp_statement SEMI  { /* does nothing */ }
             | SEMI            { gen_nop_instruction(program); }
 ;
 
@@ -455,6 +463,67 @@ write_statement : WRITE LPAR exp RPAR
 
                /* write to standard output an integer value */
                gen_write_instruction (program, location);
+            }
+;
+
+repeat_exp_statement : REPEAT_EXP LPAR IDENTIFIER ASSIGN exp COMMA exp
+            {
+               /* get the location of the symbol with the given ID. */
+               $1.output_register = get_symbol_location(program, $3, 0);
+               /* Reserve a new register for the counter */
+               $1.counter_register = getNewRegister(program);
+
+               /* initial value */
+               if ($5.expression_type == IMMEDIATE)
+                  gen_move_immediate(program, $1.output_register, $5.value);
+               else
+                  gen_add_instruction(program,
+                                      $1.output_register,
+                                      REG_0,
+                                      $5.value,
+                                      CG_DIRECT_ALL);
+               
+               /* assign exp2 to the register */
+               if ($7.expression_type == IMMEDIATE)
+                  gen_move_immediate(program, $1.counter_register, $7.value);
+               else
+                  gen_add_instruction(program,
+                                      $1.counter_register,
+                                      REG_0,
+                                      $7.value,
+                                      CG_DIRECT_ALL);
+
+               /* reserve and fix a new label */
+               $1.label_condition = assignNewLabel(program);
+               $1.label_end = newLabel(program);
+
+               /* if `exp2' is less than or equal to 0, exit the loop */
+               gen_subi_instruction(program, REG_0, $1.counter_register, 0);
+               gen_ble_instruction(program, $1.label_end, 0);
+            }
+            COMMA exp RPAR
+            {
+               /* execute statement3 */
+               if ($10.expression_type == IMMEDIATE)
+                  gen_move_immediate(program, $1.output_register, $10.value);
+               else
+                  gen_add_instruction(program,
+                                      $1.output_register,
+                                      REG_0,
+                                      $10.value,
+                                      CG_DIRECT_ALL);
+               
+               /* Decrement counter */
+               gen_subi_instruction(program, $1.counter_register, $1.counter_register, 1);
+
+               /* jump to the beginning of the loop */
+               gen_bt_instruction(program, $1.label_condition, 0);
+
+               /* fix the label `label_end' */
+               assignLabel(program, $1.label_end);
+
+               /* free the memory associated with the IDENTIFIER */
+               free($3);
             }
 ;
 
