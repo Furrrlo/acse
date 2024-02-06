@@ -1,0 +1,32 @@
+ASM:=../../bin/asm
+ACSE:=../../bin/acse
+asm_file=$(ASM)
+acse_file=$(ACSE)
+# add .exe at the end on Windows
+ifeq ($(OS), Windows_NT)
+   asm_file=$(ASM).exe
+   acse_file=$(ACSE).exe
+endif
+
+objects=$(patsubst %.src,%.o,$(wildcard *.src))
+
+.PHONY: test
+ifeq (,$(wildcard _NO_TEST_))
+# the '_NO_TEST_' file does not exist
+test: $(objects)
+else
+# the '_NO_TEST_' file does exist
+test:
+	@echo 'info: tests in directory "$(notdir $(shell pwd))" skipped'
+endif
+
+%.o: %.asm $(asm_file)
+	$(ASM) $< $@
+
+.PRECIOUS: %.asm
+%.asm: %.src $(acse_file)
+	$(ACSE) $< $@
+
+.PHONY: clean 
+clean :
+	rm -f *.log *.asm *.o

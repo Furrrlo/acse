@@ -1,0 +1,26 @@
+*.pdf
+!Unix\ setup.pdf
+!Toolchain\ manual.pdf
+
+*~
+*.backup
+*.aux
+*.log
+*.d
+*.o
+*.tab.c
+*.tab.h
+*.yy.c
+*.synctex.gz
+bin
+tests/*/*.asm
+tests/*/*.bin
+tests/*/frontend.out
+tests/*/dataflow.cfg
+tests/*/output.cfg
+tests/*/regalloc.out
+tests/*/sy_table.out
+.clangd
+.vscode
+compile_commands.json
+obj
