@@ -4,6 +4,17 @@ ACSE is a complete toolchain consisting of a compiler (named ACSE), an
 assembler, and a simulator (named MACE). It provides a simple but reasonably
 accurate sandbox for learning how compilers work.
 
+ACSE was provided to students in "Formal Languages and Compilers (FLC)" course 
+at Politecnico di Milano during the lab lessons, in order to be used
+for the exam.
+
+You can navigate through the different branches of this repository to see the 
+different exercises I solved in order to prepare for the exam.
+
+The `main` branch is mostly unchanged and is exactly as provided, with the only
+exception of the additon this small section in the README and the `.devcontainer`
+stuff which I use for my dev env.
+
 ## How to use ACSE
 
 ACSE was tested on the following operating systems:
