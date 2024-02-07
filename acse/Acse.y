@@ -125,6 +125,7 @@ extern void yyerror(const char*);
 %token RETURN
 %token READ
 %token WRITE
+%token CSWAP
 
 %token <label> DO
 %token <while_stmt> WHILE
@@ -247,6 +248,7 @@ statements  : statements statement       { /* does nothing */ }
 statement   : assign_statement SEMI      { /* does nothing */ }
             | control_statement          { /* does nothing */ }
             | read_write_statement SEMI  { /* does nothing */ }
+            | cswap_statement SEMI       { /* does nothing */ }
             | SEMI            { gen_nop_instruction(program); }
 ;
 
@@ -455,6 +457,50 @@ write_statement : WRITE LPAR exp RPAR
 
                /* write to standard output an integer value */
                gen_write_instruction (program, location);
+            }
+;
+
+cswap_statement : CSWAP LPAR IDENTIFIER COMMA exp COMMA exp COMMA IDENTIFIER RPAR
+            {
+               int var1_reg = get_symbol_location(program, $3, 0);
+               int var2_reg = get_symbol_location(program, $9, 0);
+
+               /* Assign the value of var1 to var2 */
+               gen_add_instruction(program,
+                                   var2_reg,
+                                   REG_0,
+                                   var1_reg,
+                                   CG_DIRECT_ALL);
+
+               t_axe_label *endif_label = newLabel(program);
+
+               /* if(var1 == exp1) { */
+               if ($5.expression_type == IMMEDIATE)
+                  gen_subi_instruction(program, REG_0, var1_reg, $5.value);
+               else
+                  gen_sub_instruction(program,
+                                      REG_0,
+                                      var1_reg,
+                                      $5.value,
+                                      CG_DIRECT_ALL);
+               gen_bne_instruction(program, endif_label, 0);
+
+               /* var1 = exp2; */
+               if ($7.expression_type == IMMEDIATE)
+                  gen_move_immediate(program, var1_reg, $7.value);
+               else
+                  gen_add_instruction(program,
+                                      var1_reg,
+                                      REG_0,
+                                      $7.value,
+                                      CG_DIRECT_ALL);
+               
+               /* } */
+               assignLabel(program, endif_label);
+
+               /* free the memory associated with the IDENTIFIERs */
+               free($3);
+               free($9);
             }
 ;
 

@@ -1,0 +1,12 @@
+int a, b;
+a = 10;
+
+cswap(a, 10, 11, b); // compare successful
+write(a);
+write(b);
+// a == 11, b == 10
+
+cswap(a, 12, 15*2, b); // compare failed
+write(a);
+write(b);
+// a == 11, b == 11

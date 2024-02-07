@@ -1,3 +1,47 @@
+# TdE 04/09/2023
+
+The laboratory question must be answered taking into account the implementation 
+of the Acse compiler given with the exam text.
+
+Modify the specification of the lexical analyser (`flex` input) and the 
+syntactic analyser (`bison` input) and any other source file required to 
+extend the Lance language with support for the `compare-and-swap` primitive.
+
+This primitive will be available through a new statement called cswap having 
+the following syntax:
+```c
+cswap(⟨var. 1 ⟩, ⟨exp. 1 ⟩, ⟨exp. 2 ⟩, ⟨var. 2 ⟩);
+```
+
+The statement, when executed, performs the following operations. First, it 
+checks whether variable `⟨var. 1 ⟩` is equal to expression `⟨exp. 1 ⟩`. If the
+two are indeed equal, the statement assigns the value of expression `⟨exp. 2 ⟩` 
+to `⟨var. 1 ⟩`, and assigns the old value of `⟨var. 1 ⟩` to variable `⟨var. 2 ⟩`. 
+On the contrary, if the value of `⟨var. 1 ⟩` is different from the value 
+of `⟨exp. 1 ⟩`, `⟨var. 1 ⟩` is left unmodified, and its value is also assigned 
+to `⟨var. 2 ⟩`. If both `⟨var. 1 ⟩` and `⟨var. 2 ⟩` refer to the same variable, 
+the behavior of the statement is undefined (in other words the implementation 
+doesn’t need to handle this case).
+
+The following short program exemplifies the operation of the `cswap` statement. 
+Initially the program declares two variables `a` and `b`, with a immediately 
+initialized to 10 and b left uninitialized. Then, the `cswap` statement is 
+used to compare a with 10. Since a is indeed equal to 10, a is assigned the 
+value 11, and b is assigned the old value of a, therefore b = 10. At this point 
+`cswap` is used again to compare a with 12. However, a is equal to 11 and not 
+12, therefore a is left unmodified and b is assigned the value 11.
+
+```c
+int a, b;
+a = 10;
+
+cswap(a, 10, 11, b); // compare successful
+// a == 11, b == 10
+
+cswap(a, 12, 15*2, b); // compare failed
+// a == 11, b == 11
+```
+
 # ACSE (Advanced Compiler System for Education)
 
 ACSE is a complete toolchain consisting of a compiler (named ACSE), an
