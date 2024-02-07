@@ -58,6 +58,7 @@ ID       [a-zA-Z_][a-zA-Z0-9_]*
 <comment>"*"+[^*/\n]*\n { ++line_num; }
 <comment>"*"+"/"        BEGIN(INITIAL);
 
+"[/]"             { return EMU_DIV; }
 "{"               { return LBRACE; }
 "}"               { return RBRACE; }
 "["               { return LSQUARE; }

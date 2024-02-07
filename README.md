@@ -1,3 +1,49 @@
+# TdE 30/06/2023
+
+The laboratory question must be answered taking into account the implementation of the Acse
+compiler given with the exam text.
+
+Modify the specification of the lexical analyser (flex input) and the syntactic analyser (bison input)
+and any other source file required to extend the Lance language with support for a __software-emulated
+division operator__.
+
+The software-emulated division operator shall have the same functional behavior of regular division
+for positive dividend and divisors. However, _no DIV instructions_ must be emitted by ACSE to translate
+it to assembly language. The operation may have undefined behavior if either or both dividend and
+divisor are negative — i.e. the implementation does not need to handle that case. Division by zero must
+be handled by computing a quotient of $2^{31} − 1$. The proposed implementation should perform proper
+constant folding. The code executed at compile time is not restricted in its use of division instructions.
+Therefore the C division operator may be freely used in the implementation, while the following functions
+are not allowed:
+- `gen_div_instruction()`,
+- `gen_divi_instruction()`,
+- `handle_bin_numeric_op()` when the operator argument is `DIV`.
+
+There are no constraints imposed regarding the run-time complexity of the software-emulated division.
+The symbol associated to this new operator is a bracketed slash (__[/]__) instead of the familiar slash
+(/). Its precedence and associativity are the same as non-emulated standard division, which is retained
+and coexists with the new software-emulated one.
+
+The following code snippet exemplifies the use of the new operator. As long as both `a` and `b` are
+positive and $b \neq 0$, the snippet will always print `1` when executed.
+```c
+int a, b;
+
+read(a);
+read(b);
+if (a / b == a [/] b) {
+      write(1);
+} else {
+      write(0);
+}
+```
+
+Tips: The simplest algorithm for computing division is called _repeated subtraction_. It involves sub-
+tracting the divisor from the dividend until the divisor is smaller than the dividend. The quotient is
+given by the number of subtractions performed.
+
+In your solution you can write `INT_MAX` to refer to the constant $2^{31} − 1$.
+
 # ACSE (Advanced Compiler System for Education)
 
 ACSE is a complete toolchain consisting of a compiler (named ACSE), an

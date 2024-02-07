@@ -1,0 +1,9 @@
+int a, b;
+
+read(a);
+read(b);
+if (a / b == a [/] b) {
+    write(1);
+} else {
+    write(0);
+}

@@ -16,6 +16,7 @@
 #include <stdio.h>       
 #include <stdlib.h>
 #include <assert.h>
+#include <limits.h>
 #include "axe_struct.h"
 #include "axe_engine.h"
 #include "axe_target_asm_print.h"
@@ -117,7 +118,7 @@ extern void yyerror(const char*);
 
 %token EOF_TOK /* end of file */
 %token LBRACE RBRACE LPAR RPAR LSQUARE RSQUARE
-%token SEMI PLUS MINUS MUL_OP DIV_OP
+%token SEMI PLUS MINUS MUL_OP DIV_OP EMU_DIV
 %token AND_OP OR_OP NOT_OP
 %token ASSIGN LT GT SHL_OP SHR_OP EQ NOTEQ LTEQ GTEQ
 %token ANDAND OROR
@@ -153,7 +154,7 @@ extern void yyerror(const char*);
 %left LT GT LTEQ GTEQ
 %left SHL_OP SHR_OP
 %left MINUS PLUS
-%left MUL_OP DIV_OP
+%left MUL_OP DIV_OP EMU_DIV
 %right NOT_OP
 
 /*=========================================================================
@@ -515,6 +516,55 @@ exp: NUMBER      { $$ = create_expression ($1, IMMEDIATE); }
    | exp MINUS exp  { $$ = handle_bin_numeric_op(program, $1, $3, SUB); }
    | exp MUL_OP exp { $$ = handle_bin_numeric_op(program, $1, $3, MUL); }
    | exp DIV_OP exp { $$ = handle_bin_numeric_op(program, $1, $3, DIV); }
+   | exp EMU_DIV exp 
+   { 
+      if($3.expression_type == IMMEDIATE && $3.value == 0) {
+         $$ = create_expression(INT_MAX, IMMEDIATE);
+      } else if($1.expression_type == IMMEDIATE && $3.expression_type == IMMEDIATE) {
+         $$ = create_expression($1.value / $3.value, IMMEDIATE);
+      } else {
+         int counter_register = getNewRegister(program);
+         t_axe_label *end_label = newLabel(program);
+         
+         if($3.expression_type == REGISTER) {
+            t_axe_label *notDivByZero = newLabel(program);
+            gen_andb_instruction(program, $3.value, $3.value, $3.value, CG_DIRECT_ALL);
+            gen_bne_instruction(program, notDivByZero, 0);
+            gen_move_immediate(program, counter_register, INT_MAX);
+            gen_bt_instruction(program, end_label, 0);
+            assignLabel(program, notDivByZero);
+         }
+
+         int a_reg;
+         if($1.expression_type == IMMEDIATE) {
+            a_reg = getNewRegister(program);
+            gen_move_immediate(program, a_reg, $1.value);
+         } else {
+            a_reg = $1.value;
+         }
+
+         /* int i = 0; */
+         gen_addi_instruction(program, counter_register, REG_0, 0);
+
+         /* while((a -= b) >= 0) { */
+         t_axe_label *start_label = assignNewLabel(program);
+         
+         if($3.expression_type == IMMEDIATE) {
+            gen_subi_instruction(program, a_reg, a_reg, $3.value);
+         } else {
+            gen_sub_instruction(program, a_reg, a_reg, $3.value, CG_DIRECT_ALL);
+         }
+         gen_blt_instruction(program, end_label, 0);
+         
+         /* i++ */
+         gen_addi_instruction(program, counter_register, counter_register, 1);
+         gen_bt_instruction(program, start_label, 0);
+         /* } */
+         assignLabel(program, end_label);
+         
+         $$ = create_expression(counter_register, REGISTER);
+      }
+   }
    | exp LT exp     { $$ = handle_binary_comparison(program, $1, $3, _LT_); }
    | exp GT exp     { $$ = handle_binary_comparison(program, $1, $3, _GT_); }
    | exp EQ exp     { $$ = handle_binary_comparison(program, $1, $3, _EQ_); }
