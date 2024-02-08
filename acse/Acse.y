@@ -125,6 +125,7 @@ extern void yyerror(const char*);
 %token RETURN
 %token READ
 %token WRITE
+%token REPLACE
 
 %token <label> DO
 %token <while_stmt> WHILE
@@ -247,6 +248,7 @@ statements  : statements statement       { /* does nothing */ }
 statement   : assign_statement SEMI      { /* does nothing */ }
             | control_statement          { /* does nothing */ }
             | read_write_statement SEMI  { /* does nothing */ }
+            | replace_statement SEMI     { /* does nothing */ }
             | SEMI            { gen_nop_instruction(program); }
 ;
 
@@ -455,6 +457,55 @@ write_statement : WRITE LPAR exp RPAR
 
                /* write to standard output an integer value */
                gen_write_instruction (program, location);
+            }
+;
+
+replace_statement : REPLACE LPAR IDENTIFIER COMMA exp COMMA exp RPAR
+            {
+               t_axe_variable *arr_var = getVariable(program, $3);
+
+               if(!arr_var || !arr_var->isArray) {
+                  free($3);
+                  yyerror("arg is not an array");
+                  YYERROR;
+               } 
+
+               int counter_reg = getNewRegister(program);
+               t_axe_expression counter_expr = create_expression(counter_reg, REGISTER);
+               
+               gen_addi_instruction(program, counter_reg, REG_0, 0);
+
+               /* while(i < len) { */
+               t_axe_label *start_label = assignNewLabel(program);
+               t_axe_label *end_label = newLabel(program);
+
+               gen_subi_instruction(program, REG_0, counter_reg, arr_var->arraySize);
+               gen_bge_instruction(program, end_label, 0);
+                  
+               /* if(arr[i] == expr1) { */
+               int element_reg = loadArrayElement(program, $3, counter_expr);
+
+               t_axe_label *not_equals_label = newLabel(program);
+               if($5.expression_type == IMMEDIATE)
+                  gen_subi_instruction(program, REG_0, element_reg, $5.value);
+               else
+                  gen_sub_instruction(program, REG_0, element_reg, $5.value, CG_DIRECT_ALL);
+               gen_bne_instruction(program, not_equals_label, 0);
+
+               /* arr[i] = expr2 */
+               storeArrayElement(program, $3, counter_expr, $7);
+
+               /* } */
+               assignLabel(program, not_equals_label);
+
+               /* i++ */
+               gen_addi_instruction(program, counter_reg, counter_reg, 1);
+               gen_bt_instruction(program, start_label, 0);
+
+               /* } */
+               assignLabel(program, end_label);
+
+               free($3);
             }
 ;
 
