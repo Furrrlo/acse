@@ -1,0 +1,11 @@
+int a = 123456, b;
+
+b = count_ones(a) + 100;
+write(b);
+/* b == 106 */
+b = count_ones(a - 64 + 255);
+write(b);
+/* b == 13 */
+b = count_ones(-1);
+write(b);
+/* b == 32 */

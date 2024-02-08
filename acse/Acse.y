@@ -125,6 +125,7 @@ extern void yyerror(const char*);
 %token RETURN
 %token READ
 %token WRITE
+%token COUNT_ONES
 
 %token <label> DO
 %token <while_stmt> WHILE
@@ -459,6 +460,52 @@ write_statement : WRITE LPAR exp RPAR
 ;
 
 exp: NUMBER      { $$ = create_expression ($1, IMMEDIATE); }
+   | COUNT_ONES LPAR exp RPAR
+   {
+      if($3.expression_type == IMMEDIATE) {
+         unsigned val = $3.value;
+         int counter = 0;
+         while(val) {
+            if((val & 1) == 1)
+               counter++;
+            val >>= 1;
+         }
+
+         $$ = create_expression(counter, IMMEDIATE);
+      
+      } else {
+         int output_reg = getNewRegister(program);
+         gen_addi_instruction(program, output_reg, REG_0, 0);
+
+         int val_reg = getNewRegister(program);
+         gen_addi_instruction(program, val_reg, $3.value, 0);
+
+         t_axe_label *start_label = assignNewLabel(program);
+         t_axe_label *end_label = newLabel(program);
+
+         /* while(val != 0) { */
+         gen_andb_instruction(program, val_reg, val_reg, val_reg, CG_DIRECT_ALL);
+         gen_beq_instruction(program, end_label, 0);
+
+         /* if((val & 1) != 0) { */
+         t_axe_label *endif_label = newLabel(program);
+         gen_andbi_instruction(program, REG_0, val_reg, 1);
+         gen_beq_instruction(program, endif_label, 0);
+         /* counter++ */
+         gen_addi_instruction(program, output_reg, output_reg, 1);
+         /* } */
+         assignLabel(program, endif_label);
+
+         /* val >>= 1; */
+         gen_shri_instruction(program, val_reg, val_reg, 1);
+         gen_bt_instruction(program, start_label, 0);
+
+         /* } */
+         assignLabel(program, end_label);
+
+         $$ = create_expression(output_reg, REGISTER);
+      }
+   }
    | IDENTIFIER  {
                      int location;
    
