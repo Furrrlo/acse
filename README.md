@@ -1,3 +1,44 @@
+# TdE 07/02/2022
+
+The laboratory question must be answered taking into account the implementation of the `Acse`
+compiler given with the exam text.
+
+Modify the specification of the lexical analyser (`flex` input) and the syntactic analyser (`bison` input)
+and any other source file required to extend the `Lance` language with the ability to execute code blocks
+inside expressions.
+
+Code blocks appear inside a special operator called __exec__, which can be _nested_: in other words, an
+`exec` operator can appear inside the code block of another `exec` operator. At runtime, when the `exec`
+operator is evaluated, the code block that it contains is executed.
+
+The _return_ statement is used to set the value of the innermost enclosing `exec` operator expression.
+To allow this, a new alternative syntax for `return` statements introduces the ability to specify an
+expression immediately after the `return` keyword. This kind of `return` statement is illegal outside an
+`exec` operator, and must generate a syntax error. After setting the value of the operator, this new kind
+of `return` statement interrupts the execution of the block; in other words, it jumps to its end. If no
+`return` statement appears in the block, the value of the `exec` operator will be zero.
+
+The syntax and semantics of the `exec` operator is exemplified in the following snippet. When the
+`exec` operator in the expression is evaluated, its code block is executed. Since _b_ is equal to 5 the body
+of the second `if` statement is run, causing the code block to return the value 5. At this point, the block
+exits, and the last statement in it is not executed. The rest of the expression is evaluated, and the value
+returned by the block is multiplied by 2. This value is assigned to the _a_ variable and then printed to the
+output.
+```c
+int a, b;
+
+b = 5;
+a = exec({
+      if (b > 10)
+        return b * 2 - 10;
+      if (b > 0)
+        return b;
+      return 0;
+    }) * 2;
+
+write(a); // 10
+```
+
 # ACSE (Advanced Compiler System for Education)
 
 ACSE is a complete toolchain consisting of a compiler (named ACSE), an

@@ -1,0 +1,12 @@
+int a, b;
+
+b = 5;
+a = exec({
+        if (b > 10)
+            return b * 2 - 10;
+        if (b > 0)
+            return b;
+        return 0;
+    }) * 2;
+
+write(a); // 10

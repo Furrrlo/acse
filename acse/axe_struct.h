@@ -89,6 +89,12 @@ typedef struct t_axe_expression
    int expression_type; /* actually only integer values are supported */
 } t_axe_expression;
 
+typedef struct t_axe_exec
+{
+   int res_reg;
+   t_axe_label *end_label;
+} t_axe_exec;
+
 typedef struct t_axe_declaration
 {
    int isArray;           /* must be TRUE if the current variable is an array */

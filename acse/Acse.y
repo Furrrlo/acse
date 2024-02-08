@@ -90,6 +90,7 @@ t_reg_allocator *RA;       /* Register allocator. It implements the "Linear
 
 t_io_infos *file_infos;    /* input and output files used by the compiler */
 
+t_list *exec_stack = NULL;
 
 extern int yylex(void);
 extern void yyerror(const char*);
@@ -125,6 +126,7 @@ extern void yyerror(const char*);
 %token RETURN
 %token READ
 %token WRITE
+%token EXEC
 
 %token <label> DO
 %token <while_stmt> WHILE
@@ -413,8 +415,27 @@ do_while_statement  : DO
                      }
 ;
 
-return_statement : RETURN
+return_statement : RETURN exp
             {
+               if(exec_stack == NULL) {
+                  yyerror("Return with an expr not allowed outside of an exec");
+                  YYERROR;
+               }
+
+               t_axe_exec *curr_exec = (t_axe_exec*) LDATA(exec_stack);
+               if($2.expression_type == IMMEDIATE)
+                  gen_addi_instruction(program, curr_exec->res_reg, REG_0, $2.value);
+               else
+                  gen_addi_instruction(program, curr_exec->res_reg, $2.value, 0);
+               gen_bt_instruction(program, curr_exec->end_label, 0);
+            }
+            | RETURN 
+            {
+               if(exec_stack != NULL) {
+                  yyerror("Return without an expr not allowed in an exec");
+                  YYERROR;
+               }
+
                /* insert an HALT instruction */
                gen_halt_instruction(program);
             }
@@ -459,6 +480,23 @@ write_statement : WRITE LPAR exp RPAR
 ;
 
 exp: NUMBER      { $$ = create_expression ($1, IMMEDIATE); }
+   | EXEC 
+   {
+      t_axe_exec *exec = malloc(sizeof(t_axe_exec));
+      exec->res_reg = getNewRegister(program);
+      exec->end_label = newLabel(program);
+      exec_stack = addFirst(exec_stack, exec);
+   }
+   LPAR LBRACE statements RBRACE RPAR
+   {
+      t_axe_exec *exec = (t_axe_exec*) LDATA(exec_stack); 
+      exec_stack = removeFirst(exec_stack);
+
+      assignLabel(program, exec->end_label);
+      $$ = create_expression(exec->res_reg, REGISTER);
+      
+      free(exec);
+   }
    | IDENTIFIER  {
                      int location;
    
