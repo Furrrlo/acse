@@ -125,6 +125,7 @@ extern void yyerror(const char*);
 %token RETURN
 %token READ
 %token WRITE
+%token INBOUNDS
 
 %token <label> DO
 %token <while_stmt> WHILE
@@ -459,6 +460,66 @@ write_statement : WRITE LPAR exp RPAR
 ;
 
 exp: NUMBER      { $$ = create_expression ($1, IMMEDIATE); }
+   | INBOUNDS LPAR IDENTIFIER ASSIGN IDENTIFIER LSQUARE exp RSQUARE RPAR
+   {
+      t_axe_variable *src_var = getVariable(program, $3);
+
+      if(!src_var || src_var->isArray) {
+         yyerror("LHS is not an scalar");
+         YYERROR;
+      }
+
+      t_axe_variable *dst_var = getVariable(program, $5);
+      if(!dst_var || !dst_var->isArray) {
+         yyerror("RHS is not an array");
+         YYERROR;
+      }
+
+      int src_reg = get_symbol_location(program, $3, 0);
+      if($7.expression_type == IMMEDIATE && 
+            $7.value >= 0 && $7.value < dst_var->arraySize) {
+         int el_reg = loadArrayElement(program, $5, $7);
+         gen_addi_instruction(program, src_reg, el_reg, 0);
+         $$ = create_expression(1, IMMEDIATE);
+
+      } else if($7.expression_type == IMMEDIATE) {
+         $$ = create_expression(0, IMMEDIATE);
+
+      } else {
+         int result_reg = getNewRegister(program);
+         $$ = create_expression(result_reg, REGISTER);
+
+         /* if(exp >= 0 && exp < arraySize) { */
+         t_axe_label *false_label = newLabel(program);
+         t_axe_label *end_label = newLabel(program);
+         
+         gen_subi_instruction(program, REG_0, $7.value, 0);
+         gen_blt_instruction(program, false_label, 0);
+         
+         gen_subi_instruction(program, REG_0, $7.value, dst_var->arraySize);
+         gen_bge_instruction(program, false_label, 0);
+
+         /* res = 1 */
+         gen_addi_instruction(program, result_reg, REG_0, 1);
+         /* src = dst[expr] */
+         int el_reg = loadArrayElement(program, $5, $7);
+         gen_addi_instruction(program, src_reg, el_reg, 0);
+
+         gen_bt_instruction(program, end_label, 0);
+
+         /* } else { */
+         assignLabel(program, false_label);
+         
+         /* res = 0 */
+         gen_addi_instruction(program, result_reg, REG_0, 0);
+
+         /* } */
+         assignLabel(program, end_label);
+      }
+
+      free($3);
+      free($5);
+   } 
    | IDENTIFIER  {
                      int location;
    
