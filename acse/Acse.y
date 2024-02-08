@@ -125,6 +125,7 @@ extern void yyerror(const char*);
 %token RETURN
 %token READ
 %token WRITE
+%token ZIP
 
 %token <label> DO
 %token <while_stmt> WHILE
@@ -247,6 +248,7 @@ statements  : statements statement       { /* does nothing */ }
 statement   : assign_statement SEMI      { /* does nothing */ }
             | control_statement          { /* does nothing */ }
             | read_write_statement SEMI  { /* does nothing */ }
+            | zip_statement SEMI         { /* does nothing */ }
             | SEMI            { gen_nop_instruction(program); }
 ;
 
@@ -455,6 +457,49 @@ write_statement : WRITE LPAR exp RPAR
 
                /* write to standard output an integer value */
                gen_write_instruction (program, location);
+            }
+;
+
+zip_statement : IDENTIFIER ASSIGN ZIP LPAR IDENTIFIER COMMA IDENTIFIER RPAR
+            {
+               t_axe_variable *dst_var = getVariable(program, $1);
+               if(!dst_var || !dst_var->isArray) {
+                  yyerror("Dst is not an array");
+                  YYERROR;
+               }
+
+               t_axe_variable *src1_var = getVariable(program, $5);
+               if(!src1_var || !src1_var->isArray) {
+                  yyerror("Src1 is not an array");
+                  YYERROR;
+               }
+
+               t_axe_variable *src2_var = getVariable(program, $7);
+               if(!src2_var || !src2_var->isArray) {
+                  yyerror("Src2 is not an array");
+                  YYERROR;
+               }
+
+               int smallestLen = 
+                     dst_var->arraySize < src1_var->arraySize * 2 
+                           && dst_var->arraySize < src2_var->arraySize * 2
+                        ? dst_var->arraySize 
+                        : src1_var->arraySize < src2_var->arraySize 
+                           ? src1_var->arraySize * 2
+                           : src2_var->arraySize * 2;
+               for(int i = 0; i < smallestLen; ++i) {
+                  int el_reg = loadArrayElement(program, 
+                                                i % 2 == 0 ? $5 : $7, 
+                                                create_expression(i / 2, IMMEDIATE));
+                  storeArrayElement(program, 
+                                    $1, 
+                                    create_expression(i, IMMEDIATE), 
+                                    create_expression(el_reg, REGISTER));
+               }
+
+               free($1);
+               free($5);
+               free($7);
             }
 ;
 
