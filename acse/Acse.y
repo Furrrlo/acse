@@ -90,6 +90,7 @@ t_reg_allocator *RA;       /* Register allocator. It implements the "Linear
 
 t_io_infos *file_infos;    /* input and output files used by the compiler */
 
+int random_reg;
 
 extern int yylex(void);
 extern void yyerror(const char*);
@@ -125,6 +126,7 @@ extern void yyerror(const char*);
 %token RETURN
 %token READ
 %token WRITE
+%token RANDOM RANDOMIZE
 
 %token <label> DO
 %token <while_stmt> WHILE
@@ -167,7 +169,12 @@ extern void yyerror(const char*);
       2. A list of instructions. (at least one instruction!).
  * When the rule associated with the non-terminal `program' is executed,
  * the parser notifies it to the `program' singleton instance. */
-program  : var_declarations statements EOF_TOK
+program  : 
+         {
+            random_reg = getNewRegister(program); 
+            gen_addi_instruction(program, random_reg, REG_0, 12345);
+         }
+         var_declarations statements EOF_TOK
          {
             /* Notify the end of the program. Once called
              * the function `set_end_Program' - if necessary -
@@ -247,6 +254,7 @@ statements  : statements statement       { /* does nothing */ }
 statement   : assign_statement SEMI      { /* does nothing */ }
             | control_statement          { /* does nothing */ }
             | read_write_statement SEMI  { /* does nothing */ }
+            | randomize_statement SEMI  { /* does nothing */ }
             | SEMI            { gen_nop_instruction(program); }
 ;
 
@@ -458,7 +466,27 @@ write_statement : WRITE LPAR exp RPAR
             }
 ;
 
+randomize_statement : RANDOMIZE LPAR exp RPAR
+            {
+               if($3.expression_type == IMMEDIATE)
+                  gen_addi_instruction(program, random_reg, REG_0, $3.value);
+               else
+                  gen_addi_instruction(program, random_reg, $3.value, 0);
+            }
+;
+
 exp: NUMBER      { $$ = create_expression ($1, IMMEDIATE); }
+   | RANDOM LPAR RPAR
+   {
+      int result_reg = getNewRegister(program);
+
+      // 1664525 × n + 1013904223
+      gen_muli_instruction(program, random_reg, random_reg, 1664525);
+      gen_addi_instruction(program, random_reg, random_reg, 1013904223);
+      gen_addi_instruction(program, result_reg, random_reg, 0);
+
+      $$ = create_expression(result_reg, REGISTER);
+   }
    | IDENTIFIER  {
                      int location;
    

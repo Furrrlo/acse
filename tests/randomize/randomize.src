@@ -1,0 +1,12 @@
+int a, i;
+
+i = 0;
+while (i < 3) {
+      write(random());        // 87628868, 71072467, -1962130922
+      i = i + 1;
+}
+
+randomize(12300 + 45);
+write(random());              // writes 87628868
+a = random() / 1000 + 7;
+write(a);                     // writes 71072467 / 1000 + 7 = 71079
