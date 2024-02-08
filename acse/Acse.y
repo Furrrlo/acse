@@ -138,6 +138,8 @@ extern void yyerror(const char*);
 %type <decl> declaration
 %type <list> declaration_list
 %type <label> if_stmt
+%type <list> assignment_var_ls
+%type <list> assignment_expr_ls
 
 /*=========================================================================
                           OPERATOR PRECEDENCES
@@ -277,37 +279,71 @@ assign_statement : IDENTIFIER LSQUARE exp RSQUARE ASSIGN exp
                 * by a call to the function `strdup' (see Acse.lex) */
                free($1);
             }
-            | IDENTIFIER ASSIGN exp
+            | assignment_var_ls ASSIGN assignment_expr_ls
             {
-               int location;
+               t_list *vars = $1;
+               t_list *exprs = $3;
+               while(vars) {
+                  if(!exprs) {
+                     yyerror("Mismatched variables and expressions number");
+                     YYERROR;
+                  }
 
-               /* in order to assign a value to a variable, we have to
-                * know where the variable is located (i.e. in which register).
-                * the function `get_symbol_location' is used in order
-                * to retrieve the register location assigned to
-                * a given identifier.
-                * A symbol table keeps track of the location of every
-                * declared variable.
-                * `get_symbol_location' perform a query on the symbol table
-                * in order to discover the correct location of
-                * the variable with $1 as identifier */
+                  char *var = (char*) LDATA(vars);
+                  t_axe_expression *expr = (t_axe_expression*) LDATA(exprs);
+                  
+                  /* get the location of the symbol with the given ID. */
+                  int location = get_symbol_location(program, var, 0);
+
+                  /* update the value of location */
+                  if (expr->expression_type == IMMEDIATE)
+                     gen_move_immediate(program, location, expr->value);
+                  else
+                     gen_add_instruction(program,
+                                         location,
+                                         REG_0,
+                                         expr->value,
+                                         CG_DIRECT_ALL);
+
+                  free(var);
+                  free(expr);
+
+                  vars = LNEXT(vars);
+                  exprs = LNEXT(exprs);
+               }
                
-               /* get the location of the symbol with the given ID. */
-               location = get_symbol_location(program, $1, 0);
+               if(exprs) {
+                  yyerror("Mismatched variables and expressions number");
+                  YYERROR;
+               }
 
-               /* update the value of location */
-               if ($3.expression_type == IMMEDIATE)
-                  gen_move_immediate(program, location, $3.value);
-               else
-                  gen_add_instruction(program,
-                                      location,
-                                      REG_0,
-                                      $3.value,
-                                      CG_DIRECT_ALL);
-
-               /* free the memory associated with the IDENTIFIER */
-               free($1);
+               freeList(vars);
+               freeList(exprs);
             }
+;
+
+assignment_var_ls : assignment_var_ls COMMA IDENTIFIER 
+                  {
+                     $$ = addElement($1, $3, -1);
+                  }
+                  | IDENTIFIER
+                  {
+                     $$ = addElement(NULL, $1, -1);
+                  } 
+;
+
+assignment_expr_ls : assignment_expr_ls COMMA exp
+                  {
+                     t_axe_expression *expr = malloc(sizeof(t_axe_expression));
+                     *expr = $3;
+                     $$ = addElement($1, expr, -1);
+                  }
+                  | exp
+                  {
+                     t_axe_expression *expr = malloc(sizeof(t_axe_expression));
+                     *expr = $1;
+                     $$ = addElement(NULL, expr, -1);
+                  } 
 ;
             
 if_statement   : if_stmt
