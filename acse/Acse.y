@@ -15,6 +15,7 @@
 
 #include <stdio.h>       
 #include <stdlib.h>
+#include <limits.h>
 #include <assert.h>
 #include "axe_struct.h"
 #include "axe_engine.h"
@@ -125,6 +126,7 @@ extern void yyerror(const char*);
 %token RETURN
 %token READ
 %token WRITE
+%token DDOT
 
 %token <label> DO
 %token <while_stmt> WHILE
@@ -276,6 +278,165 @@ assign_statement : IDENTIFIER LSQUARE exp RSQUARE ASSIGN exp
                 * The value of IDENTIFIER is a string created
                 * by a call to the function `strdup' (see Acse.lex) */
                free($1);
+            }
+            | IDENTIFIER ASSIGN LSQUARE exp DDOT exp RSQUARE
+            {
+               /* If the interval is empty, so either same register or same immediate, do nothing */
+               if($4.expression_type != $6.expression_type || $4.value != $6.value) {
+                  /* Here the interval is not empty */
+                  t_axe_variable *dst_var = getVariable(program, $1);
+                  int dst_reg = !dst_var->isArray ? get_symbol_location(program, $1, 0) : REG_0;
+
+                  int immediate_interval = $4.expression_type == IMMEDIATE && $6.expression_type == IMMEDIATE;
+                  int is_bad_immediate_interval = immediate_interval && $4.value > $6.value;
+
+                  if(!dst_var->isArray && immediate_interval) {
+                     if(!is_bad_immediate_interval)
+                        gen_addi_instruction(program, dst_reg, REG_0, $4.value);
+                     else
+                        gen_addi_instruction(program, dst_reg, REG_0, INT_MIN);
+
+                  } else {
+                     t_axe_label *bad_interval = NULL;
+                     if(!immediate_interval) {
+                        bad_interval = newLabel(program);
+
+                        if($4.expression_type == IMMEDIATE) {
+                           /* exp2 > exp1 */
+                           gen_subi_instruction(program, REG_0, $6.value, $4.value);
+                           gen_ble_instruction(program, bad_interval, 0);
+
+                        } else if($6.expression_type == IMMEDIATE) {
+                           /* exp1 < exp2 */
+                           gen_subi_instruction(program, REG_0, $4.value, $6.value);
+                           gen_bge_instruction(program, bad_interval, 0);
+
+                        } else {
+                           /* exp1 < exp2 */
+                           gen_sub_instruction(program, REG_0, $4.value, $6.value, CG_DIRECT_ALL);
+                           gen_bge_instruction(program, bad_interval, 0);
+                        }
+                     }
+                     
+                     if(!dst_var->isArray) {
+                        t_axe_label *end_if = newLabel(program);
+                        {
+                           if($4.expression_type == IMMEDIATE)
+                              gen_addi_instruction(program, dst_reg, REG_0, $4.value);
+                           else
+                              gen_addi_instruction(program, dst_reg, $4.value, 0);
+                           gen_bt_instruction(program, end_if, 0);
+                        }
+                        assignLabel(program, bad_interval);
+                        {
+                           gen_addi_instruction(program, dst_reg, REG_0, INT_MIN);
+                        }
+                        assignLabel(program, end_if);
+
+                     } else {
+                        int bad_interval_reg = REG_0;
+                        if(!immediate_interval) {
+                           bad_interval_reg = getNewRegister(program);
+                           t_axe_label *end_if = newLabel(program);
+                           {
+                              gen_addi_instruction(program, bad_interval_reg, REG_0, 0);
+                              gen_bt_instruction(program, end_if, 0);
+                           }
+                           assignLabel(program, bad_interval);
+                           {
+                              gen_addi_instruction(program, bad_interval_reg, REG_0, 1);
+                           }
+                           assignLabel(program, end_if);
+                        }
+
+                        int dst_counter_reg = gen_load_immediate(program, 0);
+                        t_axe_expression dst_counter_expr = create_expression(dst_counter_reg, REGISTER);
+
+                        int interval_counter_reg = getNewRegister(program);
+                        if($4.expression_type == IMMEDIATE)
+                           gen_addi_instruction(program, interval_counter_reg, REG_0, $4.value);
+                        else
+                           gen_addi_instruction(program, interval_counter_reg, $4.value, 0);
+                        t_axe_expression interval_counter_expr = create_expression(interval_counter_reg, REGISTER);
+                        
+                        t_axe_label *start_loop = assignNewLabel(program);
+                        t_axe_label *end_loop = newLabel(program);
+
+                        /* while(dst_i < dst_size && 
+                                    ((bad_interval && i <= MAX_INT) || (!bad_interval && i < intervalUpperBound))) { */
+                        gen_subi_instruction(program, REG_0, dst_counter_reg, dst_var->arraySize);
+                        gen_bge_instruction(program, end_loop, 0);
+
+                        t_axe_label *bad_interval_cmp = NULL;
+                        if(!immediate_interval) {
+                           bad_interval_cmp = newLabel(program);
+                           gen_andb_instruction(program, bad_interval_reg, bad_interval_reg, bad_interval_reg, CG_DIRECT_ALL);
+                           gen_bne_instruction(program, bad_interval_cmp, 0);
+                        }
+
+                        if(!immediate_interval || !is_bad_immediate_interval) {
+                           if($6.expression_type == IMMEDIATE)
+                              gen_subi_instruction(program, REG_0, interval_counter_reg, $6.value);
+                           else
+                              gen_sub_instruction(program, REG_0, interval_counter_reg, $6.value, CG_DIRECT_ALL);
+                           gen_bge_instruction(program, end_loop, 0);
+                        }
+                        
+                        if(!immediate_interval)
+                           assignLabel(program, bad_interval_cmp);
+
+                        if(!immediate_interval || is_bad_immediate_interval) {
+                           gen_subi_instruction(program, REG_0, interval_counter_reg, INT_MAX);
+                           gen_bgt_instruction(program, end_loop, 0);
+                        }
+
+                        /* dst[dst_i++] = i++ */
+                        storeArrayElement(program, $1, dst_counter_expr, interval_counter_expr);
+                        gen_addi_instruction(program, dst_counter_reg, dst_counter_reg, 1);
+                        gen_addi_instruction(program, interval_counter_reg, interval_counter_reg, 1);
+
+                        /* } */
+                        gen_bt_instruction(program, start_loop, 0);
+                        assignLabel(program, end_loop);
+
+                        if(!immediate_interval || is_bad_immediate_interval) {
+                           t_axe_label *start_bad_loop = assignNewLabel(program);
+                           t_axe_label *end_bad_loop = newLabel(program);
+
+                           if(!immediate_interval) {
+                              /* if(bad_interval) { */
+                              gen_andb_instruction(program, bad_interval_reg, bad_interval_reg, bad_interval_reg, CG_DIRECT_ALL);
+                              gen_beq_instruction(program, end_bad_loop, 0);
+                           }
+
+                           /* i = INT_MIN */
+                           gen_addi_instruction(program, interval_counter_reg, REG_0, INT_MIN);
+
+                           /* while(dst_i < dst_size && i < intervalUpperBound) { */
+                           gen_subi_instruction(program, REG_0, dst_counter_reg, dst_var->arraySize);
+                           gen_bge_instruction(program, end_bad_loop, 0);
+
+                           if($4.expression_type == IMMEDIATE)
+                              gen_subi_instruction(program, REG_0, interval_counter_reg, $4.value);
+                           else
+                              gen_sub_instruction(program, REG_0, interval_counter_reg, $4.value, CG_DIRECT_ALL);
+                           gen_bge_instruction(program, end_bad_loop, 0);
+
+                           /* dst[dst_i++] = i++ */
+                           storeArrayElement(program, $1, dst_counter_expr, interval_counter_expr);
+                           gen_addi_instruction(program, dst_counter_reg, dst_counter_reg, 1);
+                           gen_addi_instruction(program, interval_counter_reg, interval_counter_reg, 1);
+                           
+                           /* } */
+                           gen_bt_instruction(program, start_bad_loop, 0);
+                           /* } */
+                           assignLabel(program, end_bad_loop);
+                        }
+                     }
+                  }
+               }
+
+               free($1); 
             }
             | IDENTIFIER ASSIGN exp
             {
