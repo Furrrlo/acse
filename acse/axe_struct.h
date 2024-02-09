@@ -52,6 +52,15 @@ typedef struct t_axe_variable
                             * isArray is false. */
 } t_axe_variable;
 
+typedef struct t_invar_exp
+{
+   t_axe_label *exp_label;
+   t_axe_label *load_label;
+   t_axe_label *end_label;
+   int index_reg;
+   int result_reg;
+} t_invar_exp;
+
 /* a symbolic assembly instruction */
 typedef struct t_axe_instruction
 {

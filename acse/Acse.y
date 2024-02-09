@@ -109,6 +109,11 @@ extern void yyerror(const char*);
    t_list *list;
    t_axe_label *label;
    t_while_statement while_stmt;
+   struct {
+      t_axe_label *before_exp;
+      t_axe_label *after_exp;
+      t_axe_label *cycle;
+   } invariant_stmt;
 } 
 /*=========================================================================
                                TOKENS 
@@ -128,6 +133,7 @@ extern void yyerror(const char*);
 
 %token <label> DO
 %token <while_stmt> WHILE
+%token <invariant_stmt> INVARIANT
 %token <label> IF
 %token <label> ELSE
 %token <intval> TYPE
@@ -484,6 +490,76 @@ exp: NUMBER      { $$ = create_expression ($1, IMMEDIATE); }
 
                      /* free the memory associated with the IDENTIFIER */
                      free($1);
+   }
+   | INVARIANT LPAR IDENTIFIER COMMA 
+   {
+      t_axe_variable *arr_var = getVariable(program, $3);
+      if(!arr_var || !arr_var->isArray) {
+         yyerror("Variable is not an array");
+         YYERROR;
+      }
+
+      $1.before_exp = newLabel(program);
+      $1.after_exp = newLabel(program);
+      $1.cycle = newLabel(program);
+      
+      gen_bt_instruction(program, $1.cycle, 0);
+      
+      assignLabel(program, $1.before_exp);
+   }
+   exp COMMA IDENTIFIER RPAR
+   {
+      gen_bt_instruction(program, $1.after_exp, 0);
+      assignLabel(program, $1.cycle);
+
+      if($6.expression_type == IMMEDIATE) {
+         $$ = create_expression($6.value != 0, IMMEDIATE);
+         assignLabel(program, $1.after_exp);
+
+      } else {
+         t_axe_variable *arr_var = getVariable(program, $3);
+         int el_reg = get_symbol_location(program, $8, 0);
+         
+         int counter_reg = gen_load_immediate(program, 0);
+         t_axe_expression counter_expr = create_expression(counter_reg, REGISTER);
+
+         /* invariant = 1 */
+         int result_reg = gen_load_immediate(program, 1);
+
+         t_axe_label *label_condition = assignNewLabel(program);
+         t_axe_label *label_end = newLabel(program);
+
+         /* while(i < arraySize) { */
+         gen_subi_instruction(program, REG_0, counter_reg, arr_var->arraySize);
+         gen_bge_instruction(program, label_end, 0);
+
+         /* el = arr[i++] */
+         int array_el_reg = loadArrayElement(program, $3, counter_expr);
+         gen_addi_instruction(program, el_reg, array_el_reg, 0);
+         gen_addi_instruction(program, counter_reg, counter_reg, 1);
+
+         /* if(exp) { */
+         gen_bt_instruction(program, $1.before_exp, 0);
+         assignLabel(program, $1.after_exp);
+         
+         t_axe_label *still_invariant = newLabel(program);
+         gen_andb_instruction(program, $6.value, $6.value, $6.value, CG_DIRECT_ALL);
+         gen_bne_instruction(program, still_invariant, 0);
+
+         /* invariant = 0; break; } */
+         gen_addi_instruction(program, result_reg, REG_0, 0);
+         gen_bt_instruction(program, label_end, 0);
+
+         assignLabel(program, still_invariant);
+         /* } */
+         gen_bt_instruction(program, label_condition, 0);
+         assignLabel(program, label_end);
+
+         $$ = create_expression(result_reg, REGISTER);
+      }
+
+      free($3);
+      free($8);
    }
    | NOT_OP exp {
                if ($2.expression_type == IMMEDIATE)

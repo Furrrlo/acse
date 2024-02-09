@@ -1,3 +1,42 @@
+# TdE 02/09/2020
+
+The laboratory question must be answered taking into account the implementation of the
+`Acse` compiler given with the exam text.  
+
+Modify the specification of the lexical analyser (`flex` input) and the syntactic analyser
+(`bison` input) and any other source file required to extend the `Lance` language with the
+invariant operator.   
+The `invariant` operator has three parameters: the identifier of an
+array, an expression and the identifier of an already declared scalar. 
+The result of the application of this operator is a boolean value, i.e., 1 if the expression is an `invariant` for the array, 0
+otherwise. An expression e is an `invariant` for an array if the evaluation of e is a non-zero value
+for every element of the array.
+The following code exemplifies the use of the invariant operator.  
+
+```c
+int a = 1;
+int c[5];
+int i;
+
+c[0] = 0;
+c[1] = 1;
+c[2] = 2;
+c[3] = 3;
+c[4] = 4;
+
+write (invariant (c, (i/2)*2 == i, i));
+/* write 0 */
+
+write (invariant (c, (i+a) > 0, i));
+/* write 1 */
+
+write (invariant (c, i < 3, i));
+/* write 0 */
+
+write (invariant (c, 4, i));
+/* write 1 */
+```
+
 # ACSE (Advanced Compiler System for Education)
 
 ACSE is a complete toolchain consisting of a compiler (named ACSE), an
