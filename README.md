@@ -1,3 +1,51 @@
+# TdE 12/02/2021
+
+The laboratory question must be answered taking into account the implementation of the
+`Acse` compiler given with the exam text.
+
+Modify the specification of the lexical analyser (`flex` input) and of the syntactic analyser
+(`bison` input), and any other source file required to extend the `Lance` language with the array
+`concatenation operator ~`.  
+The `concatenation` always involves three arrays: a destination array
+and two source arrays. After `concatenation`, the destination array includes all the elements of
+a that can fit into the destination array and some of, or possibly all, the elements of b, if the
+destination array is bigger than a.  
+For instance, consider a and b of size 3 and 4, respectively.
+If the destination array is of size 2, then only two elements of a are copied; if its size is 4, then
+all the elements of a and one element of b are copied. Finally, if the size of the destination
+array is greater than 7, then all the elements of a and b are copied, and all the elements at
+positions greater than 7 are left unchanged.  
+The implementation of `~` guarantees that all the
+three identifiers involved in a concatenation are actually arrays; conversely, a compiler error is
+emitted. The following code exemplifies the array concatenation.
+
+```c
+int a[3];
+int b[5];
+int res[6];
+int i;
+
+i = 0;
+while(i < 3){
+   a[i] = i;
+   i = i + 1;
+}
+
+i = 0;
+while(i < 5){
+   b[i] = i + 10;
+   i = i + 1;
+}
+
+res = a ~ b;
+/* 0, 1, 2, 10, 11, 12 */
+i = 0;
+while(i < 6){
+   write(res[i]);
+   i = i + 1;
+}
+```
+
 # ACSE (Advanced Compiler System for Education)
 
 ACSE is a complete toolchain consisting of a compiler (named ACSE), an
