@@ -125,6 +125,7 @@ extern void yyerror(const char*);
 %token RETURN
 %token READ
 %token WRITE
+%token VCMP
 
 %token <label> DO
 %token <while_stmt> WHILE
@@ -276,6 +277,75 @@ assign_statement : IDENTIFIER LSQUARE exp RSQUARE ASSIGN exp
                 * The value of IDENTIFIER is a string created
                 * by a call to the function `strdup' (see Acse.lex) */
                free($1);
+            }
+            | IDENTIFIER ASSIGN VCMP LPAR IDENTIFIER COMMA IDENTIFIER RPAR
+            {
+               t_axe_variable *dst_var = getVariable(program, $1);
+               if(!dst_var || !dst_var->isArray) {
+                  yyerror("Dst is not an array");
+                  YYERROR;
+               }
+
+               t_axe_variable *src1_var = getVariable(program, $5);
+               if(!src1_var || !src1_var->isArray) {
+                  yyerror("Src2 is not an array");
+                  YYERROR;
+               }
+
+               t_axe_variable *src2_var = getVariable(program, $7);
+               if(!src2_var || !src2_var->isArray) {
+                  yyerror("Src1 is not an array");
+                  YYERROR;
+               }
+
+               if(dst_var->arraySize != src1_var->arraySize || dst_var->arraySize != src2_var->arraySize) {
+                  yyerror("Array sizes mismatch");
+                  YYERROR;
+               }
+
+               int counter_reg = gen_load_immediate(program, 0);
+               t_axe_expression counter_expr = create_expression(counter_reg, REGISTER);
+
+               /* while(i < arraySize) { */
+               t_axe_label *start_label = assignNewLabel(program);
+               t_axe_label *end_label = newLabel(program);
+
+               gen_subi_instruction(program, REG_0, counter_reg, dst_var->arraySize);
+               gen_bge_instruction(program, end_label, 0);
+
+               /* switch(src1[i] - src2[i]) */
+               int src1_element = loadArrayElement(program, $5, counter_expr);
+               int src2_element = loadArrayElement(program, $7, counter_expr);
+               
+               t_axe_label *smaller_label = newLabel(program);
+               t_axe_label *greater_label = newLabel(program);
+               gen_sub_instruction(program, REG_0, src1_element, src2_element, CG_DIRECT_ALL);
+               gen_blt_instruction(program, smaller_label, 0);
+               gen_bgt_instruction(program, greater_label, 0);
+               
+               /* case src1[i] == src2[i]: dst[i++] = 0; break; */
+               storeArrayElement(program, $1, counter_expr, create_expression(0, IMMEDIATE));
+               gen_addi_instruction(program, counter_reg, counter_reg, 1);
+               gen_bt_instruction(program, start_label, 0);
+
+               /* case src1[i] > src2[i]: dst[i++] = 1; break; */
+               assignLabel(program, greater_label);
+               storeArrayElement(program, $1, counter_expr, create_expression(1, IMMEDIATE));
+               gen_addi_instruction(program, counter_reg, counter_reg, 1);
+               gen_bt_instruction(program, start_label, 0);
+
+               /* case src1[i] < src2[i]: dst[i++] = -1; break; */
+               assignLabel(program, smaller_label);
+               storeArrayElement(program, $1, counter_expr, create_expression(-1, IMMEDIATE));
+               gen_addi_instruction(program, counter_reg, counter_reg, 1);
+               gen_bt_instruction(program, start_label, 0);
+
+               /* } */
+               assignLabel(program, end_label);
+
+               free($1);
+               free($5);
+               free($7);
             }
             | IDENTIFIER ASSIGN exp
             {
