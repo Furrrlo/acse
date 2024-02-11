@@ -1,0 +1,17 @@
+int x;
+int y;
+
+x = 128;
+y = 125;
+
+select(x) {
+   case(y - 1):
+      write(0);
+   case(x):
+      x = x + 1;
+      write(1);
+   case(y + 3):
+      write(2);
+}
+
+// This snippet writes 1 and 2 to the terminal

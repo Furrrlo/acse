@@ -90,6 +90,7 @@ t_reg_allocator *RA;       /* Register allocator. It implements the "Linear
 
 t_io_infos *file_infos;    /* input and output files used by the compiler */
 
+t_list *select_stack = NULL;
 
 extern int yylex(void);
 extern void yyerror(const char*);
@@ -125,6 +126,8 @@ extern void yyerror(const char*);
 %token RETURN
 %token READ
 %token WRITE
+%token SELECT COLUMN
+%token <label> CASE
 
 %token <label> DO
 %token <while_stmt> WHILE
@@ -252,6 +255,7 @@ statement   : assign_statement SEMI      { /* does nothing */ }
 
 control_statement : if_statement         { /* does nothing */ }
             | while_statement            { /* does nothing */ }
+            | select_statement           { /* does nothing */ }
             | do_while_statement SEMI    { /* does nothing */ }
             | return_statement SEMI      { /* does nothing */ }
 ;
@@ -456,6 +460,58 @@ write_statement : WRITE LPAR exp RPAR
                /* write to standard output an integer value */
                gen_write_instruction (program, location);
             }
+;
+
+select_statement  : SELECT LPAR exp RPAR 
+                  {
+                     t_axe_expression *expr = malloc(sizeof(t_axe_expression));
+                     if($3.expression_type == IMMEDIATE) {
+                        *expr = $3;
+                     } else {
+                        expr->value = getNewRegister(program);
+                        expr->expression_type = REGISTER;
+                        gen_addi_instruction(program, expr->value, $3.value, 0);
+                     }
+
+                     select_stack = addElement(select_stack, expr, -1);
+                  }
+                  LBRACE case_statements RBRACE
+                  {
+                     t_axe_expression *select_exp = LDATA(select_stack);
+                     select_stack = removeFirst(select_stack);
+                     free(select_exp);
+                  }
+;
+
+case_statements  : case_statements case_statement | case_statement ;
+
+case_statement : CASE LPAR exp RPAR 
+               {
+                  $1 = newLabel(program);
+
+                  t_axe_expression *select_exp = LDATA(select_stack);
+                  /* if(select_exp == case_exp) */
+                  if(select_exp->expression_type == IMMEDIATE && $3.expression_type == IMMEDIATE) {
+                     if(select_exp->value != $3.value)
+                        gen_bt_instruction(program, $1, 0);
+
+                  } else if(select_exp->expression_type == IMMEDIATE) {
+                     gen_subi_instruction(program, REG_0, $3.value, select_exp->value);
+                     gen_bne_instruction(program, $1, 0);
+
+                  } else if($3.expression_type == IMMEDIATE) {
+                     gen_subi_instruction(program, REG_0, select_exp->value, $3.value);
+                     gen_bne_instruction(program, $1, 0);
+
+                  } else {
+                     gen_sub_instruction(program, REG_0, select_exp->value, $3.value, CG_DIRECT_ALL);
+                     gen_bne_instruction(program, $1, 0);
+                  }
+               }
+               COLUMN statements
+               {
+                  assignLabel(program, $1);
+               }
 ;
 
 exp: NUMBER      { $$ = create_expression ($1, IMMEDIATE); }

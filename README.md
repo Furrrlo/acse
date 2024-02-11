@@ -1,3 +1,34 @@
+# TdE 30/08/2021
+
+The laboratory question must be answered taking into account the implementation of the
+Acse compiler given with the exam text.
+
+Modify the specification of the lexical analyser (flex input) and of the syntactic analyser
+(bison input), and any other source file required to extend the Lance language with the `select`
+operator. The `select` operator takes as input a scalar value, and comprises a list of `cases`.
+The `cases` are sequentially executed if and only if their value corresponds to the value the
+input expression had before executing any of the `cases`. The nesting of the `select` operator is
+considered undefined behaviour. Implement the appropriate constant-folding optimization when
+possible.
+
+The following excerpt of code exemplifies the `select` operator.
+```c
+int x = 128;
+int y = 125;
+
+select(x) {
+   case(y - 1):
+      write(0);
+   case(x):
+      x = x + 1;
+      write(1);
+   case(y + 3):
+      write(2);
+}
+
+// This snippet writes 1 and 2 to the terminal
+```
+
 # ACSE (Advanced Compiler System for Education)
 
 ACSE is a complete toolchain consisting of a compiler (named ACSE), an

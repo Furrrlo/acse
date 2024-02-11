@@ -84,6 +84,7 @@ ID       [a-zA-Z_][a-zA-Z0-9_]*
 "&&"              { return ANDAND; }
 "||"              { return OROR; }
 ","               { return COMMA; }
+":"               { return COLUMN; }
 
 "do"              { return DO; }
 "else"            { return ELSE; }
@@ -93,6 +94,8 @@ ID       [a-zA-Z_][a-zA-Z0-9_]*
 "return"          { return RETURN; }
 "read"            { return READ; }
 "write"           { return WRITE; }
+"select"          { return SELECT; }
+"case"            { return CASE; }
 
 {ID}              { yylval.svalue=strdup(yytext); return IDENTIFIER; }
 {DIGIT}+          { yylval.intval = atoi( yytext );
