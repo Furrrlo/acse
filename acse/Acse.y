@@ -109,6 +109,7 @@ extern void yyerror(const char*);
    t_list *list;
    t_axe_label *label;
    t_while_statement while_stmt;
+   t_iterate_times_unless iterate_times_unless_stmt;
 } 
 /*=========================================================================
                                TOKENS 
@@ -125,6 +126,8 @@ extern void yyerror(const char*);
 %token RETURN
 %token READ
 %token WRITE
+%token TIMES UNLESS
+%token <iterate_times_unless_stmt> ITERATE
 
 %token <label> DO
 %token <while_stmt> WHILE
@@ -247,6 +250,7 @@ statements  : statements statement       { /* does nothing */ }
 statement   : assign_statement SEMI      { /* does nothing */ }
             | control_statement          { /* does nothing */ }
             | read_write_statement SEMI  { /* does nothing */ }
+            | iterate_times_unless_statement SEMI  { /* does nothing */ }
             | SEMI            { gen_nop_instruction(program); }
 ;
 
@@ -455,6 +459,71 @@ write_statement : WRITE LPAR exp RPAR
 
                /* write to standard output an integer value */
                gen_write_instruction (program, location);
+            }
+;
+
+iterate_times_unless_statement : ITERATE 
+            {
+               $1.before_cblock = newLabel(program);
+               $1.after_cblock = newLabel(program);
+               $1.before_unless = newLabel(program);
+               $1.after_unless = newLabel(program);
+               $1.counter_init = newLabel(program);
+               $1.statement = newLabel(program);
+
+               gen_bt_instruction(program, $1.counter_init, 0);
+               assignLabel(program, $1.before_cblock);
+            }
+            code_block
+            {
+               gen_bt_instruction(program, $1.after_cblock, 0);
+               assignLabel(program, $1.counter_init);
+            }
+            TIMES LPAR exp RPAR 
+            {
+               gen_bt_instruction(program, $1.statement, 0);
+               assignLabel(program, $1.before_unless);
+            }
+            UNLESS LPAR exp RPAR
+            {
+               gen_bt_instruction(program, $1.after_unless, 0);
+               assignLabel(program, $1.statement);
+               
+               if($12.expression_type == IMMEDIATE && $12.value == 0) {
+                  assignLabel(program, $1.after_cblock);
+                  assignLabel(program, $1.after_unless);
+
+               } else {
+                  int counter_reg = gen_load_immediate(program, 0);
+                  /* while(i < exp1 && exp2) { */
+                  t_axe_label *start_label = assignNewLabel(program);
+                  t_axe_label *end_label = newLabel(program);
+
+                  if($7.expression_type == IMMEDIATE)
+                     gen_subi_instruction(program, REG_0, counter_reg, $7.value);
+                  else
+                     gen_sub_instruction(program, REG_0, counter_reg, $7.value, CG_DIRECT_ALL);
+                  gen_bge_instruction(program, end_label, 0);
+
+                  if($12.expression_type != IMMEDIATE) {
+                     gen_bt_instruction(program, $1.before_unless, 0);
+                     assignLabel(program, $1.after_unless);
+
+                     gen_andb_instruction(program, $12.value, $12.value, $12.value, CG_DIRECT_ALL);
+                     gen_bne_instruction(program, end_label, 0);
+                  }
+
+                  /* cblock */
+                  gen_bt_instruction(program, $1.before_cblock, 0);
+                  assignLabel(program, $1.after_cblock);
+
+                  /* i++ */
+                  gen_addi_instruction(program, counter_reg, counter_reg, 1);
+                  
+                  /* } */
+                  gen_bt_instruction(program, start_label, 0);
+                  assignLabel(program, end_label);
+               }
             }
 ;
 

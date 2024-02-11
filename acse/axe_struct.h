@@ -107,6 +107,15 @@ typedef struct t_while_statement
                                     * that follows the while construct */
 } t_while_statement;
 
+typedef struct t_iterate_times_unless {
+   t_axe_label *before_cblock;
+   t_axe_label *after_cblock;
+   t_axe_label *before_unless;
+   t_axe_label *after_unless;
+   t_axe_label *counter_init;
+   t_axe_label *statement;
+} t_iterate_times_unless;
+
 /* create a label */
 extern t_axe_label *alloc_label(int value);
 

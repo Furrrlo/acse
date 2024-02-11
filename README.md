@@ -1,3 +1,36 @@
+# TdE 12/07/2021
+
+The laboratory question must be answered taking into account the implementation of the
+`Acse` compiler given with the exam text.
+
+Modify the specification of the lexical analyser (`flex` input) and the syntactic analyser
+(`bison` input) and any other source file required to extend the `Lance` language with the __iterate-
+times-unless__ statement. The statement includes a code block and two expressions. The code
+block is executed a number of times equal to the expression following token __times__ (the _counter_),
+unless the condition specified with the last expression following token __unless__ is verified. The
+following excerpt of code exemplifies the use of the statement. The two assignments are repeated
+`z+5` times, unless the expression `x<=0` holds true. In other words, if `x<=0` becomes true at
+the third iteration, the remaining ones are not executed. The semantics of the statement is
+defined only for positive counters; it is undefined otherwise. The expression defining the counter
+is evaluated _only once_, at the beginning of the loop, whereas the one following token __unless__ is
+evaluated before every execution of the code block (if `x<=0` initially holds true, then the code
+block is not executed).
+```c
+int x,y,z;
+
+read(x);
+read(y);
+read(z);
+
+iterate
+{
+   x = x-1;
+   y = y+1;
+}
+times (z+5)
+unless (x<=0);
+```
+
 # ACSE (Advanced Compiler System for Education)
 
 ACSE is a complete toolchain consisting of a compiler (named ACSE), an
