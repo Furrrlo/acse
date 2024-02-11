@@ -105,6 +105,7 @@ extern void yyerror(const char*);
    int intval;
    char *svalue;
    t_axe_expression expr;
+   t_axe_range range;
    t_axe_declaration *decl;
    t_list *list;
    t_axe_label *label;
@@ -125,6 +126,7 @@ extern void yyerror(const char*);
 %token RETURN
 %token READ
 %token WRITE
+%token M_LETTER DOT
 
 %token <label> DO
 %token <while_stmt> WHILE
@@ -138,6 +140,8 @@ extern void yyerror(const char*);
 %type <decl> declaration
 %type <list> declaration_list
 %type <label> if_stmt
+%type <range> range
+%type <list> ranges
 
 /*=========================================================================
                           OPERATOR PRECEDENCES
@@ -458,7 +462,56 @@ write_statement : WRITE LPAR exp RPAR
             }
 ;
 
+ranges   : ranges COMMA range
+         {
+            t_axe_range *range = malloc(sizeof(range));
+            *range = $3;
+            $$ = addElement($1, range, -1);
+         }
+         | range
+         {
+            t_axe_range *range = malloc(sizeof(range));
+            *range = $1;
+            $$ = addElement(NULL, range, -1);
+         }
+;
+
+range : NUMBER MINUS NUMBER 
+      {
+         if($1 >= $3) {
+            yyerror("Unordered range");
+            YYERROR;
+         }
+
+         $$.from = $1;
+         $$.to = $3;
+      }
+
 exp: NUMBER      { $$ = create_expression ($1, IMMEDIATE); }
+   | IDENTIFIER DOT M_LETTER LT ranges GT M_LETTER
+   {
+      unsigned bitmap = 0;
+      while($5) {
+         t_axe_range *curr_range = LDATA($5);
+         for(int i = curr_range->from; i <= curr_range->to; ++i) {
+            if((bitmap & (1 << i)) != 0) {
+               yyerror("Ranges are not disjointed");
+               YYERROR;
+            }
+
+            bitmap |= (1 << i);
+         }
+
+         $5 = removeFirst($5);
+         free(curr_range);
+      }
+
+      int var_reg = get_symbol_location(program, $1, 0);
+      int res_reg = getNewRegister(program);
+      gen_andbi_instruction(program, res_reg, var_reg, bitmap);
+
+      $$ = create_expression(res_reg, REGISTER);
+   }
    | IDENTIFIER  {
                      int location;
    

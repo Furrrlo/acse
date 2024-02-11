@@ -89,6 +89,11 @@ typedef struct t_axe_expression
    int expression_type; /* actually only integer values are supported */
 } t_axe_expression;
 
+typedef struct t_axe_range {
+   int from;
+   int to;
+} t_axe_range;
+
 typedef struct t_axe_declaration
 {
    int isArray;           /* must be TRUE if the current variable is an array */

@@ -1,3 +1,35 @@
+# TdE 14/06/2021
+
+The laboratory question must be answered taking into account the implementation of the
+`Acse` compiler given with the exam text.
+
+Modify the specification of the lexical analyser (`flex` input) and of the syntactic analyser
+(`bison` input), and any other source file required to extend the Lance language with the multisplice
+operator. The multisplice operator performs a bitwise slicing of a scalar value, described by a
+comma-separated list of disjoint ordered ranges. Bit indices are zero-based and inclusive, e.g.,
+a range of 5-8 splices from bit 5 to bit 8. The range boundaries must be pairs of ordered
+constant integers, defining disjoint intervals, if the intervals are not ordered or not disjoint, a
+syntax error is returned. If the defined ranges exceed the representation power of the underlying
+microarchitecture, the behaviour is not defined.
+
+The following excerpt of code exemplifies the multislice operator.
+```c
+int x = 524280;
+//                   0b00000000000001111111111111111000
+
+write(x.m<0-2,19-25>m);
+// Writes 0 =        0b00000000000000000000000000000000
+
+write(x.m<3-10>m);
+// Writes 2040 =     0b00000000000000000000011111111000
+
+write(x.m<13-18>m);
+// Writes 516096 =   0b00000000000001111110000000000000
+
+write(x.m<3-10,13-18>m);
+// Writes 518136 =   0b00000000000001111110011111111000
+```
+
 # ACSE (Advanced Compiler System for Education)
 
 ACSE is a complete toolchain consisting of a compiler (named ACSE), an
