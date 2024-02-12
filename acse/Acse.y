@@ -485,6 +485,64 @@ exp: NUMBER      { $$ = create_expression ($1, IMMEDIATE); }
                      /* free the memory associated with the IDENTIFIER */
                      free($1);
    }
+   | IDENTIFIER LBRACE exp RBRACE {
+                     t_axe_variable *arr_var = getVariable(program, $1);
+                     if(!arr_var || !arr_var->isArray) {
+                        yyerror("Not an array");
+                        YYERROR;
+                     }
+
+                     t_axe_expression index_expr;
+                     if($3.expression_type == IMMEDIATE) {
+                        unsigned num = $3.value;
+                        int res;
+                        for(res = 0; num; ++res) {
+                           if((num & 1) == 1)
+                              break;
+                           num >>= 1;
+                        }
+
+                        index_expr = create_expression(res, IMMEDIATE);
+                     } else {
+                        int res_reg = gen_load_immediate(program, 0);
+                        int num_reg = getNewRegister(program);
+                        gen_addi_instruction(program, num_reg, $3.value, 0);
+                        
+                        /* while(num != 0) { */
+                        t_axe_label *start_label = assignNewLabel(program);
+                        t_axe_label *end_label = newLabel(program);
+
+                        gen_andb_instruction(program, num_reg, num_reg, num_reg, CG_DIRECT_ALL);
+                        gen_beq_instruction(program, end_label, 0);
+
+                        /* if((num & 1) != 0) break; */
+                        t_axe_label *endif_label = newLabel(program);
+
+                        int tmp_reg = getNewRegister(program);
+                        gen_andbi_instruction(program, tmp_reg, num_reg, 1);
+                        gen_andb_instruction(program, tmp_reg, tmp_reg, tmp_reg, CG_DIRECT_ALL);
+                        gen_beq_instruction(program, endif_label, 0);
+                        gen_bt_instruction(program, end_label, 0);
+                        assignLabel(program, endif_label);
+
+                        /* num >>= 1 */
+                        gen_shri_instruction(program, num_reg, num_reg, 1);
+
+                        /* res++; */
+                        gen_addi_instruction(program, res_reg, res_reg, 1);
+
+                        /* } */
+                        gen_bt_instruction(program, start_label, 0);
+                        assignLabel(program, end_label);
+                        
+                        index_expr = create_expression(res_reg, REGISTER);
+                     }
+
+                     int reg = loadArrayElement(program, $1, index_expr);
+                     $$ = create_expression(reg, REGISTER);
+
+                     free($1);
+   }
    | NOT_OP exp {
                if ($2.expression_type == IMMEDIATE)
                {

@@ -1,0 +1,14 @@
+int a[10];
+int i, b = 16; // 0b10000 -> 5th bit, 4th position
+/* a = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] */
+
+i = 0;
+while(i < 10) {
+    a[i] = i + 1;
+    i = i + 1;
+}
+
+write(a{b});
+/* 5 */ 
+write(a{32}); // 0b100000 -> 6th bit, 5th position
+/* 6 */
