@@ -1,3 +1,36 @@
+# TdE 14/1/2020
+
+The laboratory question must be answered taking into account the implementation of the
+`Acse` compiler given with the exam text.
+
+Modify the specification of the lexical analyser (`flex` input) and the syntactic analyser
+(`bison` input) and any other source file required to extend the `Lance` language with the op-
+erator `&&&`. The semantics of the operator is the standard logical _and_ operation. However,
+the translation into runtime code is optimized as follows. Consider, for instance, the expression 
+`(x+1) &&& 2*(x/z)*(-y)`. If the sub-expression `(x+1)` is 0, then the entire expression
+is logically false, and, therefore, the evaluation of the sub-expression `2*(x/z)*(-y)` can be
+avoided. Similarly, the same occurs for the expression `(x+1) &&& 0 &&& 2*(x/z)*(-y)`.
+In such a case, the value of the entire expression (logically false) can be determined by constant
+folding. Therefore, in this case, only the subexpression `(x+1)` is evaluated.
+
+The following excerpt of code exemplifies the use of the operator.
+```c
+int x,y,z;
+
+read(x);
+read(y);
+read(z);
+
+if (x &&& y)
+      write(10);
+
+if ((x+1) &&& 0 &&& 2*(x/z)*(-y))
+      write(11);
+
+if ((x+1) &&& 1 &&& 2*(x/z)*(-y))
+      write(12);
+```
+
 # ACSE (Advanced Compiler System for Education)
 
 ACSE is a complete toolchain consisting of a compiler (named ACSE), an

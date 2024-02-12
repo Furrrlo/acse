@@ -82,6 +82,7 @@ ID       [a-zA-Z_][a-zA-Z0-9_]*
 "<="              { return LTEQ; }
 ">="              { return GTEQ; }
 "&&"              { return ANDAND; }
+"&&&"             { return ANDANDAND; }
 "||"              { return OROR; }
 ","               { return COMMA; }
 

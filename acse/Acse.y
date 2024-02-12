@@ -105,6 +105,7 @@ extern void yyerror(const char*);
    int intval;
    char *svalue;
    t_axe_expression expr;
+   t_axe_optimized_and optimized_and;
    t_axe_declaration *decl;
    t_list *list;
    t_axe_label *label;
@@ -121,6 +122,7 @@ extern void yyerror(const char*);
 %token AND_OP OR_OP NOT_OP
 %token ASSIGN LT GT SHL_OP SHR_OP EQ NOTEQ LTEQ GTEQ
 %token ANDAND OROR
+%token <optimized_and> ANDANDAND
 %token COMMA
 %token RETURN
 %token READ
@@ -146,7 +148,7 @@ extern void yyerror(const char*);
 %left COMMA
 %left ASSIGN
 %left OROR
-%left ANDAND
+%left ANDANDAND ANDAND
 %left OR_OP
 %left AND_OP
 %left EQ NOTEQ
@@ -524,6 +526,46 @@ exp: NUMBER      { $$ = create_expression ($1, IMMEDIATE); }
    | exp SHL_OP exp { $$ = handle_bin_numeric_op(program, $1, $3, SHL); }
    | exp SHR_OP exp { $$ = handle_bin_numeric_op(program, $1, $3, SHR); }
    | exp ANDAND exp { $$ = handle_bin_numeric_op(program, $1, $3, ANDL); }
+   | exp ANDANDAND
+   {
+      $2.end_expr = newLabel(program);
+      
+      if($1.expression_type == IMMEDIATE && $1.value == 0) {
+         gen_bt_instruction(program, $2.end_expr, 0);
+
+      } else {
+         $2.res_reg = getNewRegister(program);
+         
+         if($1.expression_type != IMMEDIATE) {
+            gen_andb_instruction(program, $1.value, $1.value, $1.value, CG_DIRECT_ALL);
+            gen_sne_instruction(program, $2.res_reg);
+            gen_beq_instruction(program, $2.end_expr, 0);
+         }
+      }
+   } 
+   exp 
+   {
+      if(($1.expression_type == IMMEDIATE && $1.value == 0) || 
+            ($4.expression_type == IMMEDIATE && $4.value == 0)) {
+         $$ = create_expression(0, IMMEDIATE);
+
+      } else if($1.expression_type == IMMEDIATE && 
+                  $4.expression_type == IMMEDIATE && 
+                  $1.value != 0 && 
+                  $4.value != 0) {
+         $$ = create_expression(1, IMMEDIATE);
+
+      } else {
+         $$ = create_expression($2.res_reg, REGISTER);
+         
+         if($4.expression_type != IMMEDIATE) {
+            gen_andb_instruction(program, $4.value, $4.value, $4.value, CG_DIRECT_ALL);
+            gen_sne_instruction(program, $2.res_reg);
+         }
+      }
+
+      assignLabel(program, $2.end_expr);
+   }
    | exp OROR exp   { $$ = handle_bin_numeric_op(program, $1, $3, ORL); }
    | LPAR exp RPAR  { $$ = $2; }
    | MINUS exp {

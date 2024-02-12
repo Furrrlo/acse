@@ -107,6 +107,11 @@ typedef struct t_while_statement
                                     * that follows the while construct */
 } t_while_statement;
 
+typedef struct t_axe_optimized_and {
+   t_axe_label *end_expr;
+   int res_reg;
+} t_axe_optimized_and;
+
 /* create a label */
 extern t_axe_label *alloc_label(int value);
 

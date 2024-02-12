@@ -1,0 +1,16 @@
+int x,y,z;
+
+x = 1;
+y = 1;
+z = 1;
+
+if (x &&& y)
+      write(10);
+
+if ((x+1) &&& 0 &&& 2*(x/z)*(-y))
+      write(11);
+
+if ((x+1) &&& 1 &&& 2*(x/z)*(-y))
+      write(12);
+
+// Writes 10 and 12
