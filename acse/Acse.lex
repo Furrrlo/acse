@@ -84,6 +84,8 @@ ID       [a-zA-Z_][a-zA-Z0-9_]*
 "&&"              { return ANDAND; }
 "||"              { return OROR; }
 ","               { return COMMA; }
+".l{"             { return LSB_ACCESS; }
+".m{"             { return MSB_ACCESS; }
 
 "do"              { return DO; }
 "else"            { return ELSE; }

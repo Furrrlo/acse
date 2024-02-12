@@ -1,4 +1,4 @@
-Given an array and a scalar, take the least significant digit which is equal to
+Given an array and a scalar, take the least/most significant digit which is equal to
 1 and use it's position as an index to make an access into the array.
 
 ```c
@@ -6,9 +6,11 @@ int a[10];
 int b = 16; // 0b10000 -> 5th bit, 4th position
 /* a = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] */
 
-write(a{b});
+write(a.l{b});
+write(a.m{b});
 /* 5 */ 
-write(a{32}); // 0b100000 -> 6th bit, 5th position
+write(a.l{32}); // 0b100000 -> 6th bit, 5th position
+write(a.m{32});
 /* 6 */
 ```
 

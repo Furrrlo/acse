@@ -8,7 +8,23 @@ while(i < 10) {
     i = i + 1;
 }
 
-write(a{b});
+write(a.l{1});
+write(a.m{1});
+/* 1 */
+write(a.l{b});
+write(a.m{b});
 /* 5 */ 
-write(a{32}); // 0b100000 -> 6th bit, 5th position
+write(a.l{32}); // 0b100000 -> 6th bit, 5th position
+write(a.m{32});
+/* 6 */
+
+b = 24; // 0b11000 -> MSB 5th bit, 4th position
+        //            LSB 4th bit, 3th position
+write(a.l{b});
+/* 4 */ 
+write(a.m{b});
+/* 5 */ 
+write(a.l{48}); // 0b110000 -> 5th bit, 4th position
+/* 5 */
+write(a.m{48}); // 0b110000 -> 6th bit, 5th position
 /* 6 */

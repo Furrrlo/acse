@@ -125,6 +125,7 @@ extern void yyerror(const char*);
 %token RETURN
 %token READ
 %token WRITE
+%token LSB_ACCESS MSB_ACCESS
 
 %token <label> DO
 %token <while_stmt> WHILE
@@ -485,7 +486,67 @@ exp: NUMBER      { $$ = create_expression ($1, IMMEDIATE); }
                      /* free the memory associated with the IDENTIFIER */
                      free($1);
    }
-   | IDENTIFIER LBRACE exp RBRACE {
+   | IDENTIFIER MSB_ACCESS exp RBRACE {
+                     t_axe_variable *arr_var = getVariable(program, $1);
+                     if(!arr_var || !arr_var->isArray) {
+                        yyerror("Not an array");
+                        YYERROR;
+                     }
+
+                     t_axe_expression index_expr;
+                     if($3.expression_type == IMMEDIATE) {
+                        unsigned num = $3.value;
+                        int res;
+                        for(res = 0; num; ++res) {
+                           if((num & 0x80000000) != 0) {
+                              res = 31 - res;
+                              break;
+                           }
+                           num <<= 1;
+                        }
+
+                        index_expr = create_expression(res, IMMEDIATE);
+                     } else {
+                        int res_reg = gen_load_immediate(program, 0);
+                        int num_reg = getNewRegister(program);
+                        gen_addi_instruction(program, num_reg, $3.value, 0);
+                        
+                        /* while(num != 0) { */
+                        t_axe_label *start_label = assignNewLabel(program);
+                        t_axe_label *end_label = newLabel(program);
+
+                        gen_andb_instruction(program, num_reg, num_reg, num_reg, CG_DIRECT_ALL);
+                        gen_beq_instruction(program, end_label, 0);
+
+                        /* if((num & 0x80000000) != 0) { */
+                        t_axe_label *endif_label = newLabel(program);
+                        gen_andbi_instruction(program, REG_0, num_reg, 0x80000000);
+                        gen_beq_instruction(program, endif_label, 0);
+                        /* res = 31 - res; */
+                        gen_sub_instruction(program, res_reg, gen_load_immediate(program, 31), res_reg, CG_DIRECT_ALL);
+                        /* break; } */
+                        gen_bt_instruction(program, end_label, 0);
+                        assignLabel(program, endif_label);
+
+                        /* num <<= 1 */
+                        gen_shli_instruction(program, num_reg, num_reg, 1);
+
+                        /* res++; */
+                        gen_addi_instruction(program, res_reg, res_reg, 1);
+
+                        /* } */
+                        gen_bt_instruction(program, start_label, 0);
+                        assignLabel(program, end_label);
+                        
+                        index_expr = create_expression(res_reg, REGISTER);
+                     }
+
+                     int reg = loadArrayElement(program, $1, index_expr);
+                     $$ = create_expression(reg, REGISTER);
+
+                     free($1);
+   }
+   | IDENTIFIER LSB_ACCESS exp RBRACE {
                      t_axe_variable *arr_var = getVariable(program, $1);
                      if(!arr_var || !arr_var->isArray) {
                         yyerror("Not an array");
@@ -518,9 +579,7 @@ exp: NUMBER      { $$ = create_expression ($1, IMMEDIATE); }
                         /* if((num & 1) != 0) break; */
                         t_axe_label *endif_label = newLabel(program);
 
-                        int tmp_reg = getNewRegister(program);
-                        gen_andbi_instruction(program, tmp_reg, num_reg, 1);
-                        gen_andb_instruction(program, tmp_reg, tmp_reg, tmp_reg, CG_DIRECT_ALL);
+                        gen_andbi_instruction(program, REG_0, num_reg, 1);
                         gen_beq_instruction(program, endif_label, 0);
                         gen_bt_instruction(program, end_label, 0);
                         assignLabel(program, endif_label);
