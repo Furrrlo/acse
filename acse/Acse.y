@@ -125,7 +125,7 @@ extern void yyerror(const char*);
 %token RETURN
 %token READ
 %token WRITE
-%token LSB_ACCESS
+%token PICK
 
 %token <label> DO
 %token <while_stmt> WHILE
@@ -486,16 +486,16 @@ exp: NUMBER      { $$ = create_expression ($1, IMMEDIATE); }
                      /* free the memory associated with the IDENTIFIER */
                      free($1);
    }
-   | IDENTIFIER LSB_ACCESS exp RBRACE {
-                     t_axe_variable *arr_var = getVariable(program, $1);
+   | PICK LPAR IDENTIFIER COMMA exp RPAR {
+                     t_axe_variable *arr_var = getVariable(program, $3);
                      if(!arr_var || !arr_var->isArray) {
                         yyerror("Not an array");
                         YYERROR;
                      }
 
                      t_axe_expression index_expr;
-                     if($3.expression_type == IMMEDIATE) {
-                        unsigned num = $3.value;
+                     if($5.expression_type == IMMEDIATE) {
+                        unsigned num = $5.value;
                         int res;
                         for(res = 0; num; ++res) {
                            if((num & 1) == 1)
@@ -507,7 +507,7 @@ exp: NUMBER      { $$ = create_expression ($1, IMMEDIATE); }
                      } else {
                         int res_reg = gen_load_immediate(program, 0);
                         int num_reg = getNewRegister(program);
-                        gen_addi_instruction(program, num_reg, $3.value, 0);
+                        gen_addi_instruction(program, num_reg, $5.value, 0);
                         
                         /* while(num != 0) { */
                         t_axe_label *start_label = assignNewLabel(program);
@@ -537,10 +537,10 @@ exp: NUMBER      { $$ = create_expression ($1, IMMEDIATE); }
                         index_expr = create_expression(res_reg, REGISTER);
                      }
 
-                     int reg = loadArrayElement(program, $1, index_expr);
+                     int reg = loadArrayElement(program, $3, index_expr);
                      $$ = create_expression(reg, REGISTER);
 
-                     free($1);
+                     free($3);
    }
    | NOT_OP exp {
                if ($2.expression_type == IMMEDIATE)

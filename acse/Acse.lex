@@ -84,7 +84,6 @@ ID       [a-zA-Z_][a-zA-Z0-9_]*
 "&&"              { return ANDAND; }
 "||"              { return OROR; }
 ","               { return COMMA; }
-".l{"             { return LSB_ACCESS; }
 
 "do"              { return DO; }
 "else"            { return ELSE; }
@@ -94,6 +93,7 @@ ID       [a-zA-Z_][a-zA-Z0-9_]*
 "return"          { return RETURN; }
 "read"            { return READ; }
 "write"           { return WRITE; }
+"pick"            { return PICK; }
 
 {ID}              { yylval.svalue=strdup(yytext); return IDENTIFIER; }
 {DIGIT}+          { yylval.intval = atoi( yytext );
