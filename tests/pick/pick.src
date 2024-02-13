@@ -1,5 +1,5 @@
 int a[10];
-int i, b = 16; // 0b10000 -> 5th bit, 4th position
+int i, b, c;
 /* a = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] */
 
 i = 0;
@@ -8,26 +8,36 @@ while(i < 10) {
     i = i + 1;
 }
 
-write(pick(a, 1));
-/* 1 */
-write(pick(a, b));
-/* 5 */ 
-write(pick(a, 32)); // 0b100000 -> 6th bit, 5th position
-/* 6 */
+b = 1;
+write(pick(a, b)); /* 1 */
+write(b); /* 0 */
+
+b = 16; // 0b10000 -> 5th bit, 4th position
+write(pick(a, b)); /* 5 */
+write(b); /* 0 */
+
+b = 32; // 0b100000 -> 6th bit, 5th position
+write(pick(a, b)); /* 6 */
+write(b); /* 0 */
 
 b = 24; // 0b11000 -> MSB 5th bit, 4th position
         //            LSB 4th bit, 3th position
-write(pick(a, b));
-/* 4 */ 
-write(pick(a, 48)); // 0b110000 -> 5th bit, 4th position
-/* 5 */
+write(pick(a, b)); /* 4 */
+write(b); /* 16 */
 
-b = pick(a, 123456) * 1024; /* 7168 */
-write(b);
+b = 48; // 0b110000 -> 5th bit, 4th position
+write(pick(a, b)); /* 5 */
+write(b); /* 32 */
+
+b = 123456; // 0b11110001001000000
+c = pick(a, b) * 1024;
+write(c); /* 7168 */
+write(b); /* 123392 */
+
+b = 7168;
 write(pick(a, b)); /* 0b1110000000000 -> 10 out of bounds, write 0 */
+write(b); /* 6144 */
 
 b = 0;
 write(pick(a, b)); /* 0 */
-
-write(pick(a, 0)); /* 0 */
-write(pick(a, 7168)); /* 0 */
+write(b); /* 0 */

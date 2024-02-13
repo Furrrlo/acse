@@ -486,37 +486,19 @@ exp: NUMBER      { $$ = create_expression ($1, IMMEDIATE); }
                      /* free the memory associated with the IDENTIFIER */
                      free($1);
    }
-   | PICK LPAR IDENTIFIER COMMA exp RPAR {
+   | PICK LPAR IDENTIFIER COMMA IDENTIFIER RPAR {
                      t_axe_variable *arr_var = getVariable(program, $3);
                      if(!arr_var || !arr_var->isArray) {
                         yyerror("Not an array");
                         YYERROR;
                      }
 
-                     /* ---------- This is constant folding, can be skipped ---------- */
-                     if($5.expression_type == IMMEDIATE && $5.value == 0) {
-                        $$ = create_expression(0, IMMEDIATE);
+                     {
+                        int orig_num_reg = get_symbol_location(program, $5, 0);
 
-                     } else if($5.expression_type == IMMEDIATE) {
-                        unsigned num = $5.value;
-                        int res;
-                        for(res = 0; num; ++res) {
-                           if((num & 1) != 0)
-                              break;
-                           num >>= 1;
-                        }
-
-                        if(res >= arr_var->arraySize) {
-                           $$ = create_expression(0, IMMEDIATE);
-                        } else {
-                           t_axe_expression index_expr = create_expression(res, IMMEDIATE);
-                           $$ = create_expression(loadArrayElement(program, $3, index_expr), REGISTER);
-                        }
-                     /* -------------------------------------------------------------- */
-                     } else {
                         int res_reg = gen_load_immediate(program, 0);
                         int num_reg = getNewRegister(program);
-                        gen_addi_instruction(program, num_reg, $5.value, 0);
+                        gen_addi_instruction(program, num_reg, orig_num_reg, 0);
 
                         int ret_reg = gen_load_immediate(program, 0);
 
@@ -550,6 +532,12 @@ exp: NUMBER      { $$ = create_expression ($1, IMMEDIATE); }
                         /* } */
                         gen_bt_instruction(program, start_label, 0);
                         assignLabel(program, end_label);
+                        
+                        /* num = num & (~(1 << res)) */
+                        int tmp_reg = gen_load_immediate(program, 1);
+                        gen_shl_instruction(program, tmp_reg, tmp_reg, res_reg, CG_DIRECT_ALL);
+                        gen_notb_instruction(program, tmp_reg, tmp_reg);
+                        gen_andb_instruction(program, orig_num_reg, orig_num_reg, tmp_reg, CG_DIRECT_ALL);
 
                         /* if(i < arraySize) { */
                         gen_subi_instruction(program, REG_0, res_reg, arr_var->arraySize);

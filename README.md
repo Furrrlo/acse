@@ -17,6 +17,11 @@ write(b);
 write(pick(a, b)); /* 0b1110000000000 -> 10 out of bounds, write 0*/
 ```
 
+_Bonus_: Edit to make the LSB bit go to 0. You will need to make the exp
+a variable, why?
+
+[Diff from the non-bonus branch](https://github.com/Furrrlo/acse/compare/pick...pick_bonus).
+
 # ACSE (Advanced Compiler System for Education)
 
 ACSE is a complete toolchain consisting of a compiler (named ACSE), an
