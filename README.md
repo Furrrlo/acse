@@ -1,17 +1,20 @@
-Given an array and a scalar, take the least/most significant digit which is equal to
+Given an array and a scalar, take the least significant digit which is equal to
 1 and use it's position as an index to make an access into the array.
+```c
+pick(<var>, <exp>)
+```
+
+If no bit is set to 1 or the bit pos is out of bounds, return 0.
+
+No constant folding is required
 
 ```c
-int a[10];
-int b = 16; // 0b10000 -> 5th bit, 4th position
+int a[10], b;
 /* a = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] */
 
-write(a.l{b});
-write(a.m{b});
-/* 5 */ 
-write(a.l{32}); // 0b100000 -> 6th bit, 5th position
-write(a.m{32});
-/* 6 */
+b = pick(a, 123456) * 1024; /* 7168 */
+write(b);
+write(pick(a, b)); /* 0b1110000000000 -> 10 out of bounds, write 0*/
 ```
 
 # ACSE (Advanced Compiler System for Education)
