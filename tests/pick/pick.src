@@ -21,3 +21,13 @@ write(pick(a, b));
 /* 4 */ 
 write(pick(a, 48)); // 0b110000 -> 5th bit, 4th position
 /* 5 */
+
+b = pick(a, 123456) * 1024; /* 7168 */
+write(b);
+write(pick(a, b)); /* 0b1110000000000 -> 10 out of bounds, write 0 */
+
+b = 0;
+write(pick(a, b)); /* 0 */
+
+write(pick(a, 0)); /* 0 */
+write(pick(a, 7168)); /* 0 */

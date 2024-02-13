@@ -493,21 +493,38 @@ exp: NUMBER      { $$ = create_expression ($1, IMMEDIATE); }
                         YYERROR;
                      }
 
-                     t_axe_expression index_expr;
-                     if($5.expression_type == IMMEDIATE) {
+                     /* ---------- This is constant folding, can be skipped ---------- */
+                     if($5.expression_type == IMMEDIATE && $5.value == 0) {
+                        $$ = create_expression(0, IMMEDIATE);
+
+                     } else if($5.expression_type == IMMEDIATE) {
                         unsigned num = $5.value;
                         int res;
                         for(res = 0; num; ++res) {
-                           if((num & 1) == 1)
+                           if((num & 1) != 0)
                               break;
                            num >>= 1;
                         }
 
-                        index_expr = create_expression(res, IMMEDIATE);
+                        if(res >= arr_var->arraySize) {
+                           $$ = create_expression(0, IMMEDIATE);
+                        } else {
+                           t_axe_expression index_expr = create_expression(res, IMMEDIATE);
+                           $$ = create_expression(loadArrayElement(program, $3, index_expr), REGISTER);
+                        }
+                     /* -------------------------------------------------------------- */
                      } else {
                         int res_reg = gen_load_immediate(program, 0);
                         int num_reg = getNewRegister(program);
                         gen_addi_instruction(program, num_reg, $5.value, 0);
+
+                        int ret_reg = gen_load_immediate(program, 0);
+
+                        /* if(num != 0) { */
+                        t_axe_label *end_outerif_label = newLabel(program);
+
+                        gen_andb_instruction(program, num_reg, num_reg, num_reg, CG_DIRECT_ALL);
+                        gen_beq_instruction(program, end_outerif_label, 0);
                         
                         /* while(num != 0) { */
                         t_axe_label *start_label = assignNewLabel(program);
@@ -533,12 +550,20 @@ exp: NUMBER      { $$ = create_expression ($1, IMMEDIATE); }
                         /* } */
                         gen_bt_instruction(program, start_label, 0);
                         assignLabel(program, end_label);
-                        
-                        index_expr = create_expression(res_reg, REGISTER);
-                     }
 
-                     int reg = loadArrayElement(program, $3, index_expr);
-                     $$ = create_expression(reg, REGISTER);
+                        /* if(i < arraySize) { */
+                        gen_subi_instruction(program, REG_0, res_reg, arr_var->arraySize);
+                        gen_bge_instruction(program, end_outerif_label, 0);
+                        
+                        t_axe_expression index_expr = create_expression(res_reg, REGISTER);
+                        int el_reg = loadArrayElement(program, $3, index_expr);
+                        gen_addi_instruction(program, ret_reg, el_reg, 0);
+
+                        /* }} */
+                        assignLabel(program, end_outerif_label);
+
+                        $$ = create_expression(ret_reg, REGISTER);
+                     }
 
                      free($3);
    }
